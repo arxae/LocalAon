@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LocalAon.Scraper/LocalAon.Scraper.csproj" />
+    <Project Path="src\LocalAon.Models\LocalAon.Models.csproj" Type="Classic C#" />
+  </Folder>
+</Solution>
