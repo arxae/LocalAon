@@ -1,9 +1,8 @@
-﻿using LocalAon.Models;
+﻿using System.Threading.Channels;
+using LocalAon.Models;
 using LocalAon.Models.Products;
 using Serilog;
-using Spectre.Console;
 using LocalAon.Scraper.Scrapers;
-using LocalAon.Scraper.Scrapers.Pages;
 using Microsoft.EntityFrameworkCore;
 
 namespace LocalAon.Scraper;
@@ -14,7 +13,7 @@ public static class Program
     {
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
-            .WriteTo.File("output.log",
+            .WriteTo.Console(
                 outputTemplate:
                 "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}][{Level:u3}][{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
@@ -22,71 +21,82 @@ public static class Program
         StorageContext dbContext = new();
         await dbContext.Database.EnsureCreatedAsync();
 
-        ProductItem testItem = dbContext.ProductedItems.FirstOrDefault(p => p.WebsiteCategory == "Traps")!;
-
-        Scraper<TrapItem> trapScraper = new(dbContext)
-        {
-            WebsiteCategory = "Traps",
-            RootElementSelector = "#MainContent_DataListTraps",
-            NameSelector = "h2.title > a",
-            PopulateModel = (trap, document, root) =>
-            {
-                trap.Type = NodeStringHelper.ExtractNextTextAfterBoldLabel(document, "Type");
-                trap.Perception = NodeStringHelper.ExtractNextTextAfterBoldLabel(document, "Perception");
-                trap.DisableDevice = NodeStringHelper.ExtractNextTextAfterBoldLabel(document, "Disable Device");
-                trap.Trigger = NodeStringHelper.ExtractNextTextAfterBoldLabel(document, "Trigger");
-                trap.Reset = NodeStringHelper.ExtractNextTextAfterBoldLabel(document, "Reset");
-                trap.Effect = NodeStringHelper.ExtractNextTextAfterBoldLabel(document, "Effect");
-            }
-        };
-
-        TrapItem? result = await trapScraper.Scrape(testItem);
-
-
-
-        return;
-
-        await AnsiConsole.Progress()
-            .StartAsync(async ctx =>
-            {
-                // Get all the products
-                ProgressTask productsTask = ctx.AddTask("Getting all products");
-                ProductsScraper productsScraper = new(dbContext, productsTask);
-                await productsScraper.ScrapeAndSave();
-                productsScraper.Dispose();
+        // Get all the products
+        Log.Information("Getting all products");
+        ProductsScraper productsScraper = new(dbContext);
+        await productsScraper.ScrapeAndSave();
+        productsScraper.Dispose();
 
 #if DEBUG
-                // Keep only the core rule book for testing
-                // Log.Warning("Running in debug, deleting all records except Core.");
-                await dbContext.Products
-                    .Where(e => e.Id != 454)
-                    .ExecuteDeleteAsync();
+        // Keep only the core rule book for testing
+        Log.Warning("Running in debug, deleting all records except Core.");
+        await dbContext.Products
+            .Where(e => e.Id != 454)
+            .ExecuteDeleteAsync();
 
-                await dbContext.SaveChangesAsync();
-
-                ProgressTask debugPurgeTask = ctx.AddTask(Markup.Escape("[DEBUG] Remove everything but core product"));
-                debugPurgeTask.Value = 100;
+        await dbContext.SaveChangesAsync();
 #endif
 
-                // Get all the items from the products page
-                ProgressTask productsItemTask = ctx.AddTask("Getting product items");
-                ProductPageScraper productPageScraper = new(dbContext, productsItemTask);
-                await productPageScraper.ScrapeAndSave();
-                productPageScraper.Dispose();
+        // Get all the items from the products page
+        Log.Information("Getting all product items");
+        ProductPageScraper productPageScraper = new(dbContext);
+        await productPageScraper.ScrapeAndSave();
+        productPageScraper.Dispose();
 
-                // We now start actually scraping all the pages. Add all the progress bars first
-                ProgressTask spellTask = ctx.AddTask("Getting spells");
-                ProgressTask trapsTask = ctx.AddTask("Getting traps");
+        using CancellationTokenSource cts = new();
 
-                // Scrape Spells
-                // SpellDisplayScraper sds = new(dbContext, spellTask);
-                // await sds.ScrapeAndSave();
-                // sds.Dispose();
+        // Setup the page scrapers
+        Dictionary<string, IScraper> scrapers = AddScrapers.Get(dbContext);
 
-                // Scrape Traps
-                TrapsScraper trapsScraper = new(dbContext, trapsTask);
-                await trapsScraper.ScrapeAndSave();
-                trapsScraper.Dispose();
-            });
+        // Get all the productitems that need to be processed
+        Log.Information("Retrieving all product items");
+        List<ProductItem> items = dbContext.ProductedItems
+            .Where(pi => // Debug, only select specific categories
+                // pi.WebsiteCategory == "SpellDisplay" ||
+                // pi.WebsiteCategory == "Traps" ||
+                // pi.WebsiteCategory == "Curses" ||
+                // pi.WebsiteCategory == "Diseases" ||
+                pi.WebsiteCategory == "DruidCompanions"
+            )
+            .Where(pi => pi.Processed == false)
+            .ToList();
+
+        Log.Information("Retrieved {Count} product items", items.Count);
+
+        Channel<ProductItem> channel = Channel.CreateBounded<ProductItem>(new BoundedChannelOptions(5)
+        {
+            FullMode = BoundedChannelFullMode.Wait
+        });
+
+        _ = Task.Run(async () =>
+        {
+            foreach (ProductItem item in items)
+            {
+                await channel.Writer.WriteAsync(item, cts.Token);
+            }
+
+            channel.Writer.Complete();
+        }, cts.Token);
+
+        int counter = 0;
+        await foreach (ProductItem item in channel.Reader.ReadAllAsync(cts.Token))
+        {
+            int counterInt = Interlocked.Increment(ref counter);
+
+            IPageModel? result = await scrapers[item.WebsiteCategory].Scrape(item);
+
+            if (result == null)
+            {
+                Log.Error("Unable to scrape {Item}", item.Url);
+                continue;
+            }
+
+            Log.Information("Processed {Name} - {Category} ({Curr}/{Total})",
+                result.Name, item.WebsiteCategory, counterInt, items.Count);
+
+            await result.AddToContextAsync(dbContext);
+        }
+
+        await dbContext.SaveChangesAsync(cts.Token);
     }
 }

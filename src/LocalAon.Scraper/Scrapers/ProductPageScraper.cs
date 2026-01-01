@@ -17,38 +17,32 @@ namespace LocalAon.Scraper.Scrapers;
 internal sealed class ProductPageScraper : IDisposable
 {
     readonly StorageContext dbContext;
-    readonly ProgressTask taskContext;
     readonly HttpClient client;
     readonly ILogger log =  Log.ForContext<ProductPageScraper>();
 
-    internal ProductPageScraper(StorageContext dbContext, ProgressTask taskContext)
+    internal ProductPageScraper(StorageContext dbContext)
     {
         this.dbContext = dbContext;
-        this.taskContext = taskContext;
         client = new HttpClient();
     }
 
     internal async Task ScrapeAndSave()
     {
         List<Product> products = await dbContext.Products.ToListAsync();
-        int totalCount = products.Count;
-
-        taskContext.MaxValue = totalCount;
 
         ConcurrentBag<ProductItem> allItems = [];
         ConcurrentBag<Product> retry = [];
         ParallelOptions options = new() { MaxDegreeOfParallelism = Environment.ProcessorCount };
-
+        int currentCount = 0;
         await Parallel.ForEachAsync(products, options, async (product, _) =>
         {
             try
             {
                 List<ProductItem> items = await GetProductItemsFromProduct(product);
                 items.ForEach(allItems.Add);
-                taskContext.Increment(1);
 
                 // Every so often, wait for a little. Otherwise the website starts spitting 500 errors
-                if (taskContext.Value % Environment.ProcessorCount == 0)
+                if (currentCount % Environment.ProcessorCount == 0)
                 {
                     await Task.Delay(7500, _);
                 }
@@ -57,12 +51,12 @@ internal sealed class ProductPageScraper : IDisposable
             {
                 retry.Add(product);
             }
+
+            currentCount++;
         });
 
         if (retry.IsEmpty == false)
         {
-            taskContext.Description = $"Retrying {retry.Count} products";
-
             foreach (Product product in retry)
             {
                 try
@@ -89,8 +83,6 @@ internal sealed class ProductPageScraper : IDisposable
         }
 
         await dbContext.SaveChangesAsync();
-
-        taskContext.Description = $"Processed {totalCount} products";
     }
 
     internal async Task<List<ProductItem>> GetProductItemsFromProduct(Product product)

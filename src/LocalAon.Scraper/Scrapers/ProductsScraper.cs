@@ -26,24 +26,18 @@ internal sealed class ProductsScraper : IDisposable
 
     readonly StorageContext dbContext;
     readonly HttpClient client;
-    readonly ProgressTask progressContext;
 
-    internal ProductsScraper(StorageContext storageContext, ProgressTask ctx)
+    internal ProductsScraper(StorageContext storageContext)
     {
         dbContext  = storageContext;
 
         client = new HttpClient();
         client.BaseAddress = new Uri(Constants.AON_ROOT);
-
-        progressContext = ctx;
-        progressContext.IsIndeterminate = true;
     }
 
     internal async Task ScrapeAndSave()
     {
         List<Product> prods = await ScrapeProducts();
-
-        progressContext.Description = $"Retrieved {prods.Count} products";
 
         foreach (Product product in prods)
         {
@@ -58,8 +52,6 @@ internal sealed class ProductsScraper : IDisposable
         }
 
         await dbContext.SaveChangesAsync();
-        progressContext.Value = 100;
-        progressContext.Description = $"Retrieved {prods.Count} products";
     }
 
     async Task<List<Product>> ScrapeProducts()
@@ -70,8 +62,6 @@ internal sealed class ProductsScraper : IDisposable
         foreach (string productLine in productLines)
         {
             string productUrl = $"Sources.aspx?ProductLine={productLine}";
-
-            progressContext.Description = $"Scanning {productUrl}";
 
             string html = await client.GetStringAsync(productUrl);
             IDocument document = await context.OpenAsync(req => req.Content(html));

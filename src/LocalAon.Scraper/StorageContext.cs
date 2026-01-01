@@ -11,6 +11,9 @@ internal class StorageContext : DbContext
     internal DbSet<ProductItem> ProductedItems { get; set; }
 
     // Content
+    internal DbSet<Curse> Curses { get; set; }
+    internal DbSet<Disease> Diseases { get; set; }
+    internal DbSet<DruidCompanion> DruidCompanions { get; set; }
     internal DbSet<SpellDisplayItem> Spells { get; set; }
     internal DbSet<TrapItem> Traps { get; set; }
 

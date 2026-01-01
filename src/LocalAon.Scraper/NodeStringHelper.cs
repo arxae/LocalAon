@@ -1,8 +1,6 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
-using AngleSharp;
 using AngleSharp.Dom;
-using AngleSharp.Html;
 using ReverseMarkdown;
 
 namespace LocalAon.Scraper;
@@ -126,7 +124,43 @@ internal static class NodeStringHelper
         if (start == null)
             return string.Empty;
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
+
+        // Walk through following siblings
+        for (INode? node = start.NextSibling; node != null; node = node.NextSibling)
+        {
+            // Stop when we hit <div class="clear"></div> since there is nothing after it
+            if (node is IElement el &&
+                el.TagName.Equals("DIV", StringComparison.OrdinalIgnoreCase) &&
+                el.ClassList.Contains("clear"))
+            {
+                break;
+            }
+
+            // Preserve HTML exactly
+            if (node is IElement element)
+            {
+                sb.Append(element.OuterHtml);
+            }
+            else
+            {
+                sb.Append(node.TextContent);
+            }
+        }
+
+        return markdownConverter.Convert(sb.ToString());
+    }
+
+    public static string ExtractAllAfterTag(IDocument document, string tag, string text)
+    {
+        // Find the start node
+        IElement? start = document.QuerySelectorAll(tag)
+            .FirstOrDefault(el => el.TextContent == text);
+
+        if (start == null)
+            return string.Empty;
+
+        StringBuilder sb = new();
 
         // Walk through following siblings
         for (INode? node = start.NextSibling; node != null; node = node.NextSibling)
@@ -152,6 +186,38 @@ internal static class NodeStringHelper
 
         return markdownConverter.Convert(sb.ToString());
     }
+
+    public static string ExtractAllAfterTag(IDocument document, INode tag)
+    {
+        StringBuilder sb = new();
+
+        // Walk through following siblings
+        for (INode? node = tag.NextSibling; node != null; node = node.NextSibling)
+        {
+            // Stop when we hit <div class="clear"></div>
+            if (node is IElement el &&
+                el.TagName.Equals("DIV", StringComparison.OrdinalIgnoreCase) &&
+                el.ClassList.Contains("clear"))
+            {
+                break;
+            }
+
+            // Preserve HTML exactly
+            if (node is IElement element)
+            {
+                sb.Append(element.OuterHtml);
+            }
+            else
+            {
+                sb.Append(node.TextContent);
+            }
+        }
+
+        return markdownConverter.Convert(sb.ToString());
+    }
+
+    internal static string ConvertToMarkdown(string html)
+        => markdownConverter.Convert(html);
 
     static readonly Converter markdownConverter = new(new Config()
     {
