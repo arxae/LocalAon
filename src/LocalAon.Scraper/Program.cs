@@ -1,8 +1,8 @@
 ﻿using System.Threading.Channels;
 using LocalAon.Models;
 using LocalAon.Models.Products;
-using Serilog;
 using LocalAon.Scraper.Scrapers;
+using Serilog;
 using Microsoft.EntityFrameworkCore;
 
 namespace LocalAon.Scraper;
@@ -46,17 +46,18 @@ public static class Program
         using CancellationTokenSource cts = new();
 
         // Setup the page scrapers
-        Dictionary<string, IScraper> scrapers = AddScrapers.Get(dbContext);
+        Dictionary<string, IScraper> scrapers = ScraperSetup.Get(dbContext);
 
-        // Get all the productitems that need to be processed
+        // Get all the product items that need to be processed
         Log.Information("Retrieving all product items");
-        List<ProductItem> items = dbContext.ProductedItems
-            .Where(pi => // Debug, only select specific categories
-                // pi.WebsiteCategory == "SpellDisplay" ||
-                // pi.WebsiteCategory == "Traps" ||
-                // pi.WebsiteCategory == "Curses" ||
-                // pi.WebsiteCategory == "Diseases" ||
-                pi.WebsiteCategory == "DruidCompanions"
+        List<ProductItem> items = dbContext.ProductItems
+            .Where(pi => // Debug, only select specific categories to speed things up a little bit
+                pi.WebsiteCategory == "BloodlineDisplay" ||
+                pi.WebsiteCategory == "Curses" ||
+                pi.WebsiteCategory == "Diseases" ||
+                pi.WebsiteCategory == "DruidCompanions" ||
+                pi.WebsiteCategory == "SpellDisplay" ||
+                pi.WebsiteCategory == "Traps"
             )
             .Where(pi => pi.Processed == false)
             .ToList();

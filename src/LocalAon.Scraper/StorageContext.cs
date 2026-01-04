@@ -4,26 +4,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalAon.Scraper;
 
-internal class StorageContext : DbContext
+public class StorageContext : DbContext
 {
     // Product
-    internal DbSet<Product> Products { get; set; }
-    internal DbSet<ProductItem> ProductedItems { get; set; }
+    public DbSet<Product> Products { get; set; }
+    public DbSet<ProductItem> ProductItems { get; set; }
 
     // Content
-    internal DbSet<Curse> Curses { get; set; }
-    internal DbSet<Disease> Diseases { get; set; }
-    internal DbSet<DruidCompanion> DruidCompanions { get; set; }
-    internal DbSet<SpellDisplayItem> Spells { get; set; }
-    internal DbSet<TrapItem> Traps { get; set; }
+    public DbSet<BloodlineDisplayItem> Bloodlines { get; set; }
+    public DbSet<Curse> Curses { get; set; }
+    public DbSet<Disease> Diseases { get; set; }
+    public DbSet<DruidCompanion> DruidCompanions { get; set; }
+    public DbSet<SpellDisplayItem> Spells { get; set; }
+    public DbSet<TrapItem> Traps { get; set; }
 
-    internal string DbPath { get; }
+    public string DbPath => Path.Combine(
+        AppContext.BaseDirectory,
+        "local_archive_of_nethys.db");
 
-    internal StorageContext()
-    {
-        DbPath = "local_archive_of_nethys.db";
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder options)
-        => options.UseSqlite($"Data Source={DbPath}");
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseSqlite($"Data Source={DbPath}");
 }

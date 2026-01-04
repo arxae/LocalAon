@@ -75,11 +75,11 @@ internal sealed class ProductPageScraper : IDisposable
             }
         }
 
-        await dbContext.ProductedItems.ExecuteDeleteAsync();
+        await dbContext.ProductItems.ExecuteDeleteAsync();
 
         foreach (ProductItem item in allItems)
         {
-            dbContext.ProductedItems.Add(item);
+            dbContext.ProductItems.Add(item);
         }
 
         await dbContext.SaveChangesAsync();

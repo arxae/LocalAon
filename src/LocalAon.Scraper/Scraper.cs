@@ -57,7 +57,7 @@ internal class Scraper<TModel> : IScraper, IDisposable
 
         List<IElement> boldElements = [.. root.QuerySelectorAll("b")];
 
-        item.Source = root.QuerySelector("a.external-link > i")!.TextContent;
+        item.Source = NodeHelper.GetSourceText(root);
 
         PopulateModel(item, document, root);
 
