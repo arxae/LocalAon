@@ -106,7 +106,7 @@ internal static class NodeHelper
             text = text[..^1];
         }
 
-        return text;
+        return text.Trim();
     }
 
     static int GetCharacterCount(string text, char charToFind)
@@ -136,16 +136,20 @@ internal static class NodeHelper
     /// Gets all text after specified node until it either reaches end of page (div.clear)
     /// TODO: Custom end node or end tag
     /// </summary>
-    internal static string GetAllTextAfterNode(INode? node, bool preserveTags = false)
+    /// <param name="startNode">The node right before the text</param>
+    /// <param name="preserveTags">If set to false, ignore tags. When set to true the output will include tags (excluding br)</param>
+    /// <param name="asMarkdown">If set to true, convert html tags to markdown.</param>
+    /// <returns></returns>
+    internal static string GetAllTextAfterNode(INode? startNode, bool preserveTags = false, bool asMarkdown = false)
     {
-        if (node == null)
+        if (startNode == null)
         {
             return string.Empty;
         }
 
         StringBuilder sb = new();
 
-        INode? currNode = node.NextSibling;
+        INode? currNode = startNode.NextSibling;
         sb.AppendLine();
 
         while (currNode != null && IsEndOfPageNode(currNode) == false)
@@ -162,7 +166,9 @@ internal static class NodeHelper
                 sb.Append($"{el.TextContent}: ");
             }
 
-            if (preserveTags && currNode is IElement element)
+            if (preserveTags
+                && currNode is IElement element
+                && element.TagName.Equals("br", StringComparison.OrdinalIgnoreCase) == false)
             {
                 sb.Append(element.OuterHtml);
             }
@@ -174,7 +180,9 @@ internal static class NodeHelper
             currNode = currNode.NextSibling;
         }
 
-        return Normalize(sb.ToString());
+        return asMarkdown == false
+            ? Normalize(sb.ToString())
+            : ConvertToMarkdown(Normalize(sb.ToString()));
     }
 
     internal static string ConvertToMarkdown(string html)

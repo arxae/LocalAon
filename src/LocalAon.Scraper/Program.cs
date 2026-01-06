@@ -46,11 +46,11 @@ public static class Program
         using CancellationTokenSource cts = new();
 
         // Setup the page scrapers
-        Dictionary<string, IScraper> scrapers = ScraperSetup.Get(dbContext);
+        Dictionary<string, IScraper> scrapers = ScraperSetup.Get(dbContext, false);
 
         // Get all the product items that need to be processed
         Log.Information("Retrieving all product items");
-        List<ProductItem> items = dbContext.ProductItems
+        List<ProductItem> items = await dbContext.ProductItems
             .Where(pi => // Debug, only select specific categories to speed things up a little bit
                 pi.WebsiteCategory == "BloodlineDisplay" ||
                 pi.WebsiteCategory == "Curses" ||
@@ -60,7 +60,7 @@ public static class Program
                 pi.WebsiteCategory == "Traps"
             )
             .Where(pi => pi.Processed == false)
-            .ToList();
+            .ToListAsync();
 
         Log.Information("Retrieved {Count} product items", items.Count);
 
@@ -69,7 +69,7 @@ public static class Program
             FullMode = BoundedChannelFullMode.Wait
         });
 
-        _ = Task.Run(async () =>
+        Task producer = Task.Run(async () =>
         {
             foreach (ProductItem item in items)
             {
@@ -79,25 +79,36 @@ public static class Program
             channel.Writer.Complete();
         }, cts.Token);
 
+        int maxTasks = 5;
         int counter = 0;
-        await foreach (ProductItem item in channel.Reader.ReadAllAsync(cts.Token))
-        {
-            int counterInt = Interlocked.Increment(ref counter);
-
-            IPageModel? result = await scrapers[item.WebsiteCategory].Scrape(item);
-
-            if (result == null)
+        Task[] consumers = Enumerable.Range(0, maxTasks)
+            .Select(_ => Task.Run(async () =>
             {
-                Log.Error("Unable to scrape {Item}", item.Url);
-                continue;
-            }
+                await using StorageContext dbCtx = new();
+                await foreach (ProductItem item in channel.Reader.ReadAllAsync(cts.Token))
+                {
+                    int counterInt = Interlocked.Increment(ref counter);
 
-            Log.Information("Processed {Name} - {Category} ({Curr}/{Total})",
-                result.Name, item.WebsiteCategory, counterInt, items.Count);
+                    IPageModel? result = await scrapers[item.WebsiteCategory].Scrape(item);
 
-            await result.AddToContextAsync(dbContext);
-        }
+                    if (result == null)
+                    {
+                        Log.Error("Unable to scrape {Item}", item.Url);
+                        continue;
+                    }
 
-        await dbContext.SaveChangesAsync(cts.Token);
+                    Log.Information("Processed {Name} - {Category} ({Curr}/{Total})",
+                        result.Name, item.WebsiteCategory, counterInt, items.Count);
+
+                    await result.AddToContextAsync(dbCtx);
+                    await dbCtx.SaveChangesAsync(cts.Token);
+
+                    // Wait a little bit to avoid 500 errors
+                    await Task.Delay(500, cts.Token);
+                }
+            }, cts.Token))
+            .ToArray();
+
+        await Task.WhenAll(consumers.Append(producer));
     }
 }

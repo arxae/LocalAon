@@ -10,7 +10,7 @@ internal static class ScraperSetup
     static void Error(string ctx, string template, params object?[]? templateObj)
         => Log.ForContext("SourceContext", ctx).Error(template, templateObj);
 
-    internal static Dictionary<string, IScraper> Get(StorageContext dbContext)
+    internal static Dictionary<string, IScraper> Get(StorageContext dbContext, bool descriptionsAsMarkdown)
     {
         return new Dictionary<string, IScraper>()
         {
@@ -41,7 +41,8 @@ internal static class ScraperSetup
                     INode? bloodlinePowersNode = root.QuerySelectorAll("b")
                         .FirstOrDefault(e => e.TextContent == "Bloodline Powers");
 
-                    bloodline.BloodlinePowers = NodeHelper.GetAllTextAfterNode(bloodlinePowersNode);
+                    bloodline.BloodlinePowers = NodeHelper.GetAllTextAfterNode(bloodlinePowersNode,
+                        preserveTags: descriptionsAsMarkdown, asMarkdown: descriptionsAsMarkdown);
                 }
             },
             ["Curses"] = new Scraper<Curse>(dbContext)
@@ -94,8 +95,8 @@ internal static class ScraperSetup
                     druidCompanion.CompanionType = NodeHelper.GetTextAfterBoldNode(document, "Companion Type");
                     druidCompanion.MonsterEntry = monsterEntryLink;
 
-                    string monsterEntryHtml = NodeHelper.GetAllTextAfterNode(monsterEntryNode, true);
-                    druidCompanion.Description = NodeHelper.ConvertToMarkdown(monsterEntryHtml);
+                    druidCompanion.Description = NodeHelper.GetAllTextAfterNode(monsterEntryNode,
+                        preserveTags: descriptionsAsMarkdown, asMarkdown: descriptionsAsMarkdown);
                 }
             },
             ["SpellDisplay"] = new Scraper<SpellDisplayItem>(dbContext)
@@ -118,7 +119,8 @@ internal static class ScraperSetup
 
                     IElement? descriptionNode = root.QuerySelectorAll("h3.framing")
                         .FirstOrDefault(el => el.TextContent == "Description");
-                    spell.Description = NodeHelper.GetAllTextAfterNode(descriptionNode);
+                    spell.Description = NodeHelper.GetAllTextAfterNode(descriptionNode,
+                        preserveTags: descriptionsAsMarkdown, asMarkdown: descriptionsAsMarkdown);
                 }
             },
             ["Traps"] = new Scraper<TrapItem>(dbContext)
