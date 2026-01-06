@@ -3,10 +3,10 @@
 public class BloodlineDisplayItem : IPageModel
 {
     public int Id { get; set; }
-    public string Url { get; set; }
+    public string Url { get; set; } = null!;
     public int ProductId { get; set; }
-    public string Name { get; set; }
-    public string Source { get; set; }
+    public string Name { get; set; } = null!;
+    public string Source { get; set; } = null!;
 
     public string? Description { get; set; }
     public string? ClassSkill { get; set; }

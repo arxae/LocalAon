@@ -3,11 +3,10 @@
 public class Disease : IPageModel
 {
     public int Id { get; set; }
-    public string Url { get; set; }
-
+    public string Url { get; set; } = null!;
     public int ProductId { get; set; }
-    public string Name { get; set; }
-    public string Source { get; set; }
+    public string Name { get; set; } = null!;
+    public string Source { get; set; } = null!;
 
     public string? Type { get; set; }
     public string? FortitudeSave { get; set; }

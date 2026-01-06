@@ -16,19 +16,19 @@ public class ProductItem
     /// The url towards the specific content
     /// eg: https://www.aonprd.com/Curses.aspx?ItemName=Baleful%20Polymorph%20Spell
     /// </summary>
-    public string Url { get; init; }
+    public string Url { get; init; } = null!;
 
     /// <summary>
     /// The full category used on the sources page
     /// eg: Afflictions - Curses
     /// </summary>
-    public string BookCategory { get; init; }
+    public string BookCategory { get; init; } = null!;
 
     /// <summary>
     /// The category used on the website. This is actually the aspx page used to display the item
     /// eg: https://www.aonprd.com/Curses.aspx?ItemName=Baleful%20Polymorph%20Spell -> Curses
     /// </summary>
-    public string WebsiteCategory { get; init; }
+    public string WebsiteCategory { get; init; } = null!;
 
     /// <summary>
     /// Whether this item was scraped or not.
