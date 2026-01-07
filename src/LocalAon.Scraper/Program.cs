@@ -52,13 +52,14 @@ public static class Program
         Log.Information("Retrieving all product items");
         List<ProductItem> items = await dbContext.ProductItems
             .Where(pi => // Debug, only select specific categories to speed things up a little bit
-                pi.WebsiteCategory == "BloodlineDisplay" ||
-                pi.WebsiteCategory == "Curses" ||
-                pi.WebsiteCategory == "Diseases" ||
-                pi.WebsiteCategory == "DruidCompanions" ||
-                pi.WebsiteCategory == "PoisonDisplay" ||
-                pi.WebsiteCategory == "SpellDisplay" ||
-                pi.WebsiteCategory == "Traps"
+                // pi.WebsiteCategory == "BloodlineDisplay" ||
+                // pi.WebsiteCategory == "Curses" ||
+                // pi.WebsiteCategory == "Diseases" ||
+                // pi.WebsiteCategory == "DruidCompanions" ||
+                // pi.WebsiteCategory == PoisonDisplay.WEBSITE_CATEGORY ||
+                pi.WebsiteCategory == Skills.WEBSITE_CATEGORY
+                // pi.WebsiteCategory == "SpellDisplay" ||
+                // pi.WebsiteCategory == "Traps"
             )
             .Where(pi => pi.Processed == false)
             .ToListAsync(cancellationToken: cts.Token);

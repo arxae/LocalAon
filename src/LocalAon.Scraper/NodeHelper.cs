@@ -141,7 +141,8 @@ internal static class NodeHelper
     /// <param name="preserveTags">If set to false, ignore tags. When set to true the output will include tags (excluding br)</param>
     /// <param name="asMarkdown">If set to true, convert html tags to markdown.</param>
     /// <returns></returns>
-    internal static string GetAllTextAfterNode(INode? startNode, bool preserveTags = false, bool asMarkdown = false)
+    internal static string GetAllTextAfterNode(INode? startNode,
+        INode? stopAtNode = null, bool preserveTags = false, bool asMarkdown = false)
     {
         if (startNode == null)
         {
@@ -155,6 +156,9 @@ internal static class NodeHelper
 
         while (currNode != null && IsEndOfPageNode(currNode) == false)
         {
+            if (currNode == stopAtNode)
+                break;
+
             IElement? el = currNode as IElement;
 
             if (el != null && el.TagName.Equals("br", StringComparison.OrdinalIgnoreCase))

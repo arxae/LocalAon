@@ -125,6 +125,37 @@ internal static class ScraperSetup
                         preserveTags: descriptionsAsMarkdown, asMarkdown: descriptionsAsMarkdown);
                 }
             },
+            [Skills.WEBSITE_CATEGORY] = new Scraper<Skills>(dbContext)
+            {
+                WebsiteCategory = "Skills.WEBSITE_CATEGORY",
+                RootElementSelector = "table#MainContent_DataListTalentsAll",
+                NameSelector = "h1.title",
+                PopulateModel = (skill, document, root) =>
+                {
+                    // The name contains name and some properties
+                    // eg: Use Magic Device (Cha; Trained Only)
+                    string[] parts = skill.Name.Split('(');
+                    skill.Name = parts[0].Trim();
+
+                    string propertyString = parts[1][..^1];
+                    string[] properties = propertyString.Split(';');
+
+                    // First property is always te ability designation
+                    skill.Ability = properties[0];
+
+                    foreach (string property in properties)
+                    {
+                        if (property.Equals("Armor Check Penalty", StringComparison.OrdinalIgnoreCase))
+                            skill.ArmorCheckPenalty = true;
+
+                        if (property.Equals("Trained Only", StringComparison.OrdinalIgnoreCase))
+                            skill.TrainedOnly = true;
+                    }
+
+                    IElement? startDescription = NodeHelper.GetSourceNode(root);
+                    skill.Description = NodeHelper.GetAllTextAfterNode(startDescription);
+                }
+            },
             ["SpellDisplay"] = new Scraper<SpellDisplayItem>(dbContext)
             {
                 WebsiteCategory = "SpellDisplay",
