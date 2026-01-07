@@ -99,6 +99,32 @@ internal static class ScraperSetup
                         preserveTags: descriptionsAsMarkdown, asMarkdown: descriptionsAsMarkdown);
                 }
             },
+            [PoisonDisplay.WEBSITE_CATEGORY] = new Scraper<PoisonDisplay>(dbContext)
+            {
+                WebsiteCategory = PoisonDisplay.WEBSITE_CATEGORY,
+                RootElementSelector = "table#MainContent_DataListTypes",
+                NameSelector = "h1.title",
+                PopulateModel = (poison, document, root) =>
+                {
+                    poison.Price = NodeHelper.GetTextAfterBoldNode(document, "Price");
+                    poison.Weight = NodeHelper.GetTextAfterBoldNode(document, "Weight");
+                    poison.Type = NodeHelper.GetTextAfterBoldNode(document, "Type");
+                    poison.Save = NodeHelper.GetTextAfterBoldNode(document, "Save");
+                    poison.Onset = NodeHelper.GetTextAfterBoldNode(document, "Onset");
+                    poison.Frequeny = NodeHelper.GetTextAfterBoldNode(document, "Frequency");
+                    poison.Effect = NodeHelper.GetTextAfterBoldNode(document, "Effect");
+                    poison.Cure = NodeHelper.GetTextAfterBoldNode(document, "Cure");
+
+                    IElement? descriptionNode = root.QuerySelectorAll("h3.framing")
+                        .FirstOrDefault(e => e.TextContent == "Description");
+
+                    if (descriptionNode == null)
+                        return;
+
+                    poison.Description = NodeHelper.GetAllTextAfterNode(descriptionNode,
+                        preserveTags: descriptionsAsMarkdown, asMarkdown: descriptionsAsMarkdown);
+                }
+            },
             ["SpellDisplay"] = new Scraper<SpellDisplayItem>(dbContext)
             {
                 WebsiteCategory = "SpellDisplay",

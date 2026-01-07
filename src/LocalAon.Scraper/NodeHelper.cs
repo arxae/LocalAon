@@ -23,7 +23,7 @@ internal static class NodeHelper
     /// Finds the B node with boldNodeText and returns the text after it. Use gatherRestOfLine if the text after it
     /// contains other tags.
     /// </summary>
-    internal static string GetTextAfterBoldNode(IDocument document, string boldNodeText, bool gatherRestOfLine = false)
+    internal static string? GetTextAfterBoldNode(IDocument document, string boldNodeText, bool gatherRestOfLine = false)
     {
         IElement? start = document.All
             .FirstOrDefault(e =>
@@ -35,12 +35,13 @@ internal static class NodeHelper
             return string.Empty;
         }
 
-        if (gatherRestOfLine)
-        {
-            return Normalize(GetLineContent(start));
-        }
+        string output = Normalize(gatherRestOfLine
+            ? GetLineContent(start)
+            : GetNextTextNode(start));
 
-        return Normalize(GetNextTextNode(start));
+        return string.IsNullOrWhiteSpace(output)
+            ? null
+            : output;
     }
 
     /// <summary>

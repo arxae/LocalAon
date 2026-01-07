@@ -15,6 +15,7 @@ public class StorageContext : DbContext
     public DbSet<Curse> Curses { get; set; }
     public DbSet<Disease> Diseases { get; set; }
     public DbSet<DruidCompanion> DruidCompanions { get; set; }
+    public DbSet<PoisonDisplay> Poisons { get; set; }
     public DbSet<SpellDisplayItem> Spells { get; set; }
     public DbSet<TrapItem> Traps { get; set; }
 
